@@ -1,31 +1,76 @@
 var dbManager = require('./modules/dbManager');
 var INDEXNAME = 'Mappings';
 
-//deleteAllNodes = 'MATCH (n) OPTIONAL MATCH (n)-[r]-() DELETE n,r';
+deleteAllNodes = 'MATCH (n) OPTIONAL MATCH (n)-[r]-() DELETE n,r';
+
+var idNode = 'mm:9101112';
 
 module.exports = function(app) {
 	reinitialize(function() {
-		//after REINIT 
-
-		dbManager.listConstraints('id', function(err, res) { 
-			console.log(res);
+		//after REINIT
+		dbManager.insertNode(INDEXNAME, idNode, function(res) {
+			console.log('res : ', res);
 		});
-
 	});
+
+	app.get('/mapping/:id', function(req, res) {
+		dbManager.findNodeByMappingId(req.params.id, function(res) {
+			if (res.length !== 0) {
+				console.log('mapping ' + req.params.id + ' after call: ', res);
+				//CYPHER QUERY FOR RETURNING OBJECT IN NEO4j
+				// MATCH (mapping:Mappings { id: 'mm:9101112' }) RETURN mapping
+			} else {
+				console.log('mapping ' + req.params.id + ' doesnt exist : ', res);
+				//RETURN EMPTY OBJECT
+			}
+		});
+	});
+
+//HOW TO RETRIEVE ALL MAPPINGS FROM A NODE:
+	// MATCH (mapping:Mappings {id: 'mm:131415' })-[r]->(HAS_MAPPING) RETURN *
+
+//HOW TO CREATE MAPPINGS W RELATIONS !
+//SITUATION 1:
+	//CREATE (n1: Mappings { id: 'mm:131415' })
+	//CREATE (n2: Mappings { id: 'mm:151617' })
+	//CREATE(n3: Mappings { id: 'mm:171819' })
+	//CREATE
+		//(n1)-[:HAS_MAPPING]->(n2),
+		//(n1)-[:HAS_MAPPING]->(n3)
+
+//SITUATION 2: 
+// CREATE (n5: Mappings { id: 'mm:442843' })
+// CREATE (n6: Mappings { id: 'mm:349572' })
+// CREATE(n7: Mappings { id: 'mm:543684' })
+// CREATE(n8: Mappings { id: 'mm:301193' })
+// 	CREATE
+// 		(n5)-[:HAS_MAPPING]->(n6),
+// 		(n5)-[:HAS_MAPPING]->(n7),
+// 		(n6)-[:HAS_MAPPING]->(n7),
+// 		(n6)-[:HAS_MAPPING]->(n8),
+// 		(n8)-[:HAS_MAPPING]->(n7),
+// 		(n8)-[:HAS_MAPPING]->(n5)
+
 }
 
 function reinitialize(callback) { 
-	dbManager.deleteIndex(INDEXNAME, function(res) {
-		console.log('after deleting : ', res);
-		dbManager.insertIndex(INDEXNAME, function(res) {
-			console.log('after inserting : ', res);
-			dbManager.createConstraint(INDEXNAME, 'id', function(res) {
-				console.log('after creating constraint : ', res);
-				callback();
-			}); 
+	dbManager.executeCypherQuery(deleteAllNodes, function(res) { //this deletes everything !! Be careful
+		console.log('after deleting all nodes : ', res);
+		dbManager.deleteIndex(INDEXNAME, function(res) {
+			console.log('after deleting : ', res);
+			dbManager.insertIndex(INDEXNAME, function(res) {
+				console.log('after inserting : ', res);
+				dbManager.createConstraint(INDEXNAME, 'id', function(res) {
+					dbManager.listConstraints('id', function(res) { 
+						console.log('after creating constraint : ', res);
+						callback();
+					});
+				}); 
+			});
 		});
 	});
 }
+
 
 //node insertion
 
