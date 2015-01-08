@@ -54,19 +54,35 @@ exports.insertNode = function(indexName, idNode, callback) {
 	db.insertNode({
 		id: idNode
 	}, [indexName], function (err, res) { 
-		if (err) 
-			callback(err);
-		callback(res);
+		if (err) {
+			findNodeByMappingId(idNode, function(status, foundNode) { //else return found item
+				if (status !== null)
+					callback(foundNode);
+				else
+					callback(err); //callback initial error 400
+			});
+		} else 
+			callback(res);
 	});
 }
 
-exports.findNodeByMappingId = function(idNode, callback) {
+exports.createRelationship = function(root_node_id, other_node_id, relation_type, callback) {
+	db.insertRelationship(root_node_id, other_node_id, relation_type, {}, function (err, relationship) {
+        if(err) 
+        	callback(null, err);
+        
+        callback('ok', relationship);
+    });
+};
+
+var findNodeByMappingId = function(idNode, callback) {
 	db.readNodesWithLabelsAndProperties('Mappings', {
 	    id: idNode
 	}, function (err, res) {
 	    if (err)
-	    	callback(err);
-	    callback(res);
+	    	callback(null, err);
+	    else 
+	    	callback('ok', res[0]);
 	});
 };
 

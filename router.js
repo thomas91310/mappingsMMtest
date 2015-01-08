@@ -6,25 +6,61 @@ deleteAllNodes = 'MATCH (n) OPTIONAL MATCH (n)-[r]-() DELETE n,r';
 var idNode = 'mm:9101112';
 
 module.exports = function(app) {
-	reinitialize(function() {
-		//after REINIT
-		dbManager.insertNode(INDEXNAME, idNode, function(res) {
-			console.log('res : ', res);
-		});
-	});
+	// reinitialize(function() {
+	// 	//after REINIT
+	// 	console.log("REINITIALIZATION");
+	// 	// dbManager.insertNode(INDEXNAME, idNode, function(res) {
+	// 	// 	console.log('res : ', res);
+	// 	// });
+	// });
 
 	app.get('/mapping/:id', function(req, res) {
-		dbManager.findNodeByMappingId(req.params.id, function(res) {
-			if (res.length !== 0) {
-				console.log('mapping ' + req.params.id + ' after call: ', res);
-				//CYPHER QUERY FOR RETURNING OBJECT IN NEO4j
-				// MATCH (mapping:Mappings { id: 'mm:9101112' }) RETURN mapping
-			} else {
-				console.log('mapping ' + req.params.id + ' doesnt exist : ', res);
-				//RETURN EMPTY OBJECT
-			}
+		var nodes = req.params.id.split(',');
+		var firstNode = nodes[0];
+		var secondNode = nodes[1];
+		createOrFindExistingNode(firstNode, function(firstMapping) {
+
+			createOrFindExistingNode(secondNode, function(secondMapping) {
+
+				var query = "MATCH (n1:Mappings {id: '" + firstMapping.id + "' }), (n2:Mappings {id: '" + secondMapping.id + "' }) CREATE (n1)-[:HAS_MAPPING]->(n2)";
+				//query to create the relationship between the 2 nodes.
+
+				dbManager.executeCypherQuery(query, function(res) {
+					console.log('res : ', res);
+				});
+
+			});
+
+		});
+
+	 });
+
+};
+
+var createOrFindExistingNode = function(nodeID, callback) {
+	dbManager.insertNode(INDEXNAME, nodeID, function(res) {
+		callback(res);
+	});
+}
+
+function reinitialize(callback) { 
+	dbManager.executeCypherQuery(deleteAllNodes, function(res) { //this deletes everything !! Be careful
+		console.log('after deleting all nodes : ', res);
+		dbManager.deleteIndex(INDEXNAME, function(res) {
+			console.log('after deleting : ', res);
+			dbManager.insertIndex(INDEXNAME, function(res) {
+				console.log('after inserting : ', res);
+				dbManager.createConstraint(INDEXNAME, 'id', function(res) {
+					dbManager.listConstraints('id', function(res) { 
+						console.log('after creating constraint : ', res);
+						callback();
+					});
+				}); 
+			});
 		});
 	});
+}
+
 
 //HOW TO RETRIEVE ALL MAPPINGS FROM A NODE:
 	// MATCH (mapping:Mappings {id: 'mm:131415' })-[r]->(HAS_MAPPING) RETURN *
@@ -51,25 +87,24 @@ module.exports = function(app) {
 // 		(n8)-[:HAS_MAPPING]->(n7),
 // 		(n8)-[:HAS_MAPPING]->(n5)
 
-}
+// dbManager.findNodeByMappingId(req.params.id, function(res) {
+// 	if (res.length !== 0) {
+// 		console.log('mapping ' + req.params.id + ' after call: ', res);
+// 		//CYPHER QUERY FOR RETURNING OBJECT IN NEO4j
+// 		// MATCH (mapping:Mappings { id: 'mm:9101112' }) RETURN mapping
+// 	} else {
+// 		console.log('mapping ' + req.params.id + ' doesnt exist : ', res);
+// 		//RETURN EMPTY OBJECT
+// 	}
+// });
 
-function reinitialize(callback) { 
-	dbManager.executeCypherQuery(deleteAllNodes, function(res) { //this deletes everything !! Be careful
-		console.log('after deleting all nodes : ', res);
-		dbManager.deleteIndex(INDEXNAME, function(res) {
-			console.log('after deleting : ', res);
-			dbManager.insertIndex(INDEXNAME, function(res) {
-				console.log('after inserting : ', res);
-				dbManager.createConstraint(INDEXNAME, 'id', function(res) {
-					dbManager.listConstraints('id', function(res) { 
-						console.log('after creating constraint : ', res);
-						callback();
-					});
-				}); 
-			});
-		});
-	});
-}
+// dbManager.insertNode(INDEXNAME, firstNode, function(res) {
+// 	console.log('here res : ', res);
+
+// 		//CYPHER QUERY FOR RETURNING OBJECT IN NEO4j
+
+// 		//MATCH (mapping:Mappings { id: 'mm:9101112' }) RETURN mapping
+// });
 
 
 //node insertion
